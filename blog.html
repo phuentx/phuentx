@@ -1,1 +1,790 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newton. - Gravity of Thought</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Google Fonts: Inter & Space Grotesk -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- Markdown Parser (for AI responses) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+    <script>
+        tailwind.config = {
+            theme: {
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                    display: ['Space Grotesk', 'sans-serif'],
+                },
+                extend: {
+                    colors: {
+                        system: {
+                            bg: '#fbfbfd',
+                            surface: '#ffffff',
+                            gray: '#86868b',
+                            blue: '#0071e3', // Apple Blue
+                            dark: '#1d1d1f'
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                        'slide-up': 'slideUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                        'scale-in': 'scaleIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(40px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        scaleIn: {
+                            '0%': { transform: 'scale(0.95)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        },
+                    },
+                    typography: {
+                        DEFAULT: {
+                            css: {
+                                color: '#1d1d1f',
+                                maxWidth: '65ch', // Slightly narrower for better reading in 3-col layout
+                                lineHeight: '1.8',
+                            },
+                        },
+                        xl: {
+                             css: {
+                                lineHeight: '1.9',
+                                fontSize: '1.25rem',
+                             }
+                        }
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        .bg-noise {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 40;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        .glass-nav {
+            background: rgba(251, 251, 253, 0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        /* Large Card Hover Effect */
+        .featured-card-hover {
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .featured-card-hover:hover {
+            transform: translateY(-4px) scale(1.005);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.25);
+        }
+        .featured-card-hover:active {
+            transform: scale(0.98);
+        }
+
+        /* AI Menu Tooltip */
+        .ai-tooltip {
+            background: #1d1d1f;
+            color: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        
+        ::selection {
+            background: #b3d7ff;
+            color: #1d1d1f;
+        }
+
+        #progress-bar {
+            height: 4px;
+            background: #0071e3;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body class="bg-system-bg text-system-dark overflow-x-hidden relative">
+
+    <div class="bg-noise"></div>
+
+    <!-- Reading Progress Bar -->
+    <div id="progress-container" class="fixed top-0 left-0 w-full z-[60] hidden">
+        <div id="progress-bar"></div>
+    </div>
+
+    <!-- AI Floating Trigger (Appears near selection) -->
+    <div id="ai-menu" class="absolute z-[100] hidden transition-all duration-200 ease-out transform scale-95 opacity-0 origin-bottom">
+        <button id="ai-trigger-btn" class="ai-tooltip flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium hover:bg-black transition-colors shadow-xl border border-white/10">
+            <i data-lucide="sparkles" class="w-4 h-4 text-system-blue"></i>
+            <span>Ask AI</span>
+        </button>
+        <div class="w-3 h-3 bg-[#1d1d1f] rotate-45 absolute -bottom-1 left-1/2 transform -translate-x-1/2"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)] py-6 bg-transparent">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8 flex justify-between items-center">
+            <a href="index.html" class="text-2xl font-display font-bold tracking-tight text-system-dark hover:opacity-70 transition-opacity relative z-50">
+                Newton.
+            </a>
+
+            <!-- Desktop Nav -->
+            <div class="hidden md:flex items-center space-x-10">
+                <a href="index.html" class="text-[13px] font-medium text-gray-600 hover:text-system-dark transition-colors tracking-wide">Home</a>
+                <button onclick="router.navigate('post', blogPosts.find(p => p.id === 'vision'))" class="text-[13px] font-medium text-gray-600 hover:text-system-dark transition-colors tracking-wide">Vision</button>
+                <button onclick="router.navigate('post', blogPosts.find(p => p.id === 'karma'))" class="text-[13px] font-medium text-gray-600 hover:text-system-dark transition-colors tracking-wide">Karma</button>
+                <button onclick="router.navigate('post', blogPosts.find(p => p.id === 'retreat'))" class="text-[13px] font-medium text-gray-600 hover:text-system-dark transition-colors tracking-wide">Legacy</button>
+                <a href="home.html" class="bg-system-dark text-white px-5 py-2 rounded-full text-[13px] font-medium hover:bg-gray-800 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95 shadow-md">
+                    Try Newton
+                </a>
+            </div>
+
+            <!-- Mobile Menu Button -->
+            <button id="mobile-menu-btn" class="md:hidden z-50 p-2 -mr-2 text-gray-900 transition-transform active:scale-90">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Nav Overlay -->
+    <div id="mobile-menu" class="fixed inset-0 bg-white/95 backdrop-blur-xl z-40 flex flex-col items-center justify-center space-y-8 transition-all duration-500 opacity-0 pointer-events-none md:hidden transform scale-95">
+        <a href="index.html" class="text-3xl font-display font-bold text-gray-900 mobile-link hover:text-system-blue transition-colors">Home</a>
+        <button onclick="router.navigate('post', blogPosts.find(p => p.id === 'vision'))" class="text-3xl font-display font-bold text-gray-900 mobile-link hover:text-system-blue transition-colors">Vision</button>
+        <button onclick="router.navigate('post', blogPosts.find(p => p.id === 'karma'))" class="text-3xl font-display font-bold text-gray-900 mobile-link hover:text-system-blue transition-colors">Karma</button>
+        <button onclick="router.navigate('post', blogPosts.find(p => p.id === 'retreat'))" class="text-3xl font-display font-bold text-gray-900 mobile-link hover:text-system-blue transition-colors">Legacy</button>
+        <a href="home.html" class="bg-system-blue text-white px-10 py-4 rounded-full text-xl font-medium mobile-link shadow-xl">
+            Try Newton
+        </a>
+    </div>
+
+    <!-- Main Content Root -->
+    <main id="app-root" class="min-h-screen w-full pt-20">
+        <!-- Content injected here via JS -->
+    </main>
+
+    <!-- Footer -->
+    <footer id="footer" class="bg-white border-t border-gray-100 pt-24 pb-12 mt-auto relative z-10">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-12 lg:gap-16 mb-20">
+                <div class="col-span-1 md:col-span-1">
+                    <h3 class="text-2xl font-display font-bold text-gray-900 mb-6 tracking-tight">Newton.</h3>
+                    <p class="text-sm text-gray-500 leading-relaxed font-light max-w-xs">
+                        Observing the laws of the digital universe. We explore the gravity of good design and the motion of modern technology.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-gray-900 mb-6 text-xs uppercase tracking-widest">Explore</h4>
+                    <ul class="space-y-4 text-sm text-gray-500 font-medium">
+                        <li><a href="#" class="hover:text-system-blue transition-colors">The Laws</a></li>
+                        <li><a href="#" class="hover:text-system-blue transition-colors">Interface Lab</a></li>
+                        <li><a href="#" class="hover:text-system-blue transition-colors">Motion Study</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-gray-900 mb-6 text-xs uppercase tracking-widest">Company</h4>
+                    <ul class="space-y-4 text-sm text-gray-500 font-medium">
+                        <li><a href="#" class="hover:text-system-blue transition-colors">About</a></li>
+                        <li><a href="#" class="hover:text-system-blue transition-colors">Careers</a></li>
+                        <li><a href="#" class="hover:text-system-blue transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-gray-900 mb-6 text-xs uppercase tracking-widest">Journal</h4>
+                    <div class="flex group">
+                        <input type="email" placeholder="Email address" class="bg-gray-50 border-2 border-transparent rounded-l-xl px-4 py-3 text-sm w-full focus:outline-none focus:bg-white focus:border-gray-200 transition-all placeholder-gray-400">
+                        <button class="bg-gray-100 text-gray-900 px-5 rounded-r-xl hover:bg-system-blue hover:text-white transition-all flex items-center justify-center">
+                            <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-100 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-400 font-medium">
+                <p>&copy; 2025 Newton Inc. All rights reserved.</p>
+                <div class="flex space-x-8 mt-4 md:mt-0">
+                    <a href="#" class="hover:text-gray-900 transition-colors">Privacy Policy</a>
+                    <a href="#" class="hover:text-gray-900 transition-colors">Terms of Use</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- Data ---
+        const currentDate = "Nov 26, 2025";
+        
+        const blogPosts = [
+            {
+                id: 'vision',
+                title: "Our Vision",
+                subtitle: "“A learner’s environment should be healthy in order to obtain great achievement.” – Team Gravitas",
+                date: currentDate,
+                readTime: "4 min",
+                category: "Philosophy",
+                author: "Ngawang Tshogyal Phuentshok",
+                authorImage: "https://i.imghippo.com/files/ysU7129TyE.jpg",
+                image: "https://i.imghippo.com/files/drnX9347mE.png",
+                content: `
+                    <p class="lead text-2xl md:text-3xl font-medium leading-relaxed text-gray-900 mb-12 text-balance first-letter:text-7xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-system-dark first-letter:leading-[0.8]">
+                        Human learning is deeply shaped by the environment in which a person grows, studies, and interacts. The content they consume, the behaviors they develop, and the quality of teaching they receive are all influenced by what surrounds them daily.
+                    </p>
+                    
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        For example, a student who is raised in a supportive and encouraging environment often develops confidence and curiosity, while one who grows in a stressful or chaotic setting may struggle with concentration, motivation, and emotional stability. Even simple factors—such as noise levels, access to learning materials, or the presence of positive role models—can significantly affect how effectively a person learns.
+                    </p>
+
+                    <h3 class="text-3xl font-display font-bold text-gray-900 mt-16 mb-6 tracking-tight">Transforming Mindsets</h3>
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        Moving to a new environment can completely transform a learner’s mindset and abilities. A student who transfers from a discouraging environment to one that is nurturing and well-structured often experiences improved performance, clearer thinking, and renewed motivation. This is because new environments offer new influences: healthier routines, better guidance, and opportunities to form positive habits.
+                    </p>
+
+                    <div class="my-16 p-12 bg-blue-50 rounded-[2rem] border border-blue-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blue-100 rounded-full blur-3xl opacity-50"></div>
+                        <blockquote class="text-2xl md:text-3xl font-display font-medium text-blue-900 text-center leading-relaxed relative z-10">
+                            "Adaptation plays a crucial role. As learners adjust to new surroundings, they develop resilience, flexibility, and the capacity to thrive."
+                        </blockquote>
+                    </div>
+
+                    <h3 class="text-3xl font-display font-bold text-gray-900 mt-16 mb-6 tracking-tight">The Gravitas Goal</h3>
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        At Gravitas, we aim to build and maintain a healthy learning space where individuals are empowered to grow, think critically, and consume meaningful, uplifting content. We believe that when learners are placed in an environment that values respect, curiosity, and collaboration, they naturally become contributors to a just and harmonious society.
+                    </p>
+
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        Our goal is not to create change merely for the sake of change, but to inspire transformation that has genuine, lasting impact. We strive to help learners become individuals who influence their communities positively—people whose growth today will continue to empower others for a lifetime.
+                    </p>
+                `
+            },
+            {
+                id: 'karma',
+                title: "The Cycle of Karma",
+                subtitle: "Understanding Our Actions and Their Effects",
+                date: currentDate,
+                readTime: "7 min",
+                category: "Spiritual",
+                author: "Jigdral Namgyal",
+                authorImage: "https://i.imghippo.com/files/fxd9122lfA.png",
+                image: "https://i.imghippo.com/files/mIPL1722DKk.png",
+                content: `
+                    <p class="lead text-2xl md:text-3xl font-medium leading-relaxed text-gray-900 mb-12 text-balance first-letter:text-7xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-system-dark first-letter:leading-[0.8]">
+                        Karma is an important idea in Buddhism and in Bhutanese life. It talks about how our actions, words, and thoughts create results in our life.
+                    </p>
+
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        Karma means “action,” but it is more than just doing something. Every action we take has a result, and these results can affect our present and future. This creates a cycle — our actions lead to results, and those results lead to more actions.
+                    </p>
+
+                    <h3 class="text-3xl font-display font-bold text-gray-900 mt-16 mb-6 tracking-tight">Intentions Matter</h3>
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        The cycle of karma starts with our intentions. Every action has a reason behind it. Good intentions, like being kind, honest, or helpful, create positive karma. Bad intentions, like being angry, greedy, or jealous, create negative karma. For example, if someone helps a friend, they create positive energy. If someone hurts another person, they create negative energy. These effects do not disappear. They come back in different ways and affect our life.
+                    </p>
+
+                    <h3 class="text-3xl font-display font-bold text-gray-900 mt-16 mb-6 tracking-tight">Patience and Time</h3>
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        Karma does not always happen right away. Sometimes the result of an action comes quickly. Other times, it takes days, months, or even years. This teaches us to be patient. It reminds us that even if we don’t see the results immediately, our actions are still shaping our future. A kind action today may bring happiness to someone tomorrow, and a harmful action may cause problems later.
+                    </p>
+
+                    <div class="my-16 p-12 bg-amber-50 rounded-[2rem] border border-amber-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-amber-100 rounded-full blur-3xl opacity-50"></div>
+                        <blockquote class="text-2xl md:text-3xl font-display font-medium text-amber-900 text-center leading-relaxed relative z-10">
+                            "Karma is not only about ourselves. It affects other people and even the world around us."
+                        </blockquote>
+                    </div>
+
+                    <h3 class="text-3xl font-display font-bold text-gray-900 mt-16 mb-6 tracking-tight">Cause and Effect</h3>
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        The cycle of karma works like cause and effect. Every action has a result, and every result can cause new actions. For example, a student who studies hard and helps classmates may receive friendship and support in return. This encourages them to keep acting kindly. On the other hand, someone who lies or cheats may face distrust or lose opportunities, teaching them a lesson. In this way, karma shapes our experiences and the way we live.
+                    </p>
+
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        Karma is also a way to learn and grow. Negative karma is not punishment. It is a lesson. Problems, failures, or conflicts help us think, improve, and make better choices. By acting kindly and carefully, even in hard situations, we can turn negative karma into positive results. Positive karma can grow when we continue to be honest, helpful, and kind to others.
+                    </p>
+
+                    <h3 class="text-3xl font-display font-bold text-gray-900 mt-16 mb-6 tracking-tight">Mindfulness</h3>
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        Being mindful is important in managing karma. By paying attention to our thoughts, words, and actions, we can choose to do good. Meditation, reflection, and living with care help us stop bad habits and build positive ones. Over time, these actions help us feel happier, more peaceful, and more in control of our life.
+                    </p>
+
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        In Buddhism, karma is connected to the cycle of birth, life, and rebirth. Our actions in this life can affect our next life. Good actions lead to good results, and bad actions can bring challenges. Knowing this helps people act kindly and wisely, because their actions matter not just now, but also in the future.
+                    </p>
+
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        In conclusion, the cycle of karma teaches us that everything we do matters. Our thoughts, words, and actions shape our life, our relationships, and the world around us. Acting with kindness, honesty, and care creates a life full of happiness and harmony. By understanding karma, we learn to live carefully, make good choices, and help others. Karma is not just an idea — it is a guide to living a better life, being responsible for our actions, and making the world a better place.
+                    </p>
+                `
+            },
+            {
+                id: 'retreat',
+                title: "Nature Retreat",
+                subtitle: "Druk Gyalpo's Institute’s Way of Connecting With Nature.",
+                date: currentDate,
+                readTime: "5 min",
+                category: "Nature",
+                author: "Jigdral Namgyal",
+                authorImage: "https://i.imghippo.com/files/fxd9122lfA.png", 
+                image: "https://i.imghippo.com/files/RKf5890obo.png", 
+                content: `
+                    <p class="lead text-2xl md:text-3xl font-medium leading-relaxed text-gray-900 mb-12 text-balance first-letter:text-7xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-system-dark first-letter:leading-[0.8]">
+                        At the Royal Academy, the act of connecting with nature transcends the notion of a mere recreational activity—it forms an integral part of the learning journey.
+                    </p>
+                    
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                         Twice each year, both students and teachers are granted the rare opportunity to step away from their regular routines and immerse themselves in the natural world. This sacred time, known as the Nature Retreat, occurs once before the mid-term and again after it, offering all involved a chance to pause, reflect, and renew before returning to their academic endeavors.
+                    </p>
+                    
+                    <h3 class="text-3xl font-display font-bold text-gray-900 mt-16 mb-6 tracking-tight">Catalyst for Growth</h3>
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        The Nature Retreat serves as a profound catalyst for growth on multiple levels. Foremost, it nurtures intellectual curiosity. As participants venture to ancient sites, monasteries, and landmarks, they encounter the rich history and deep cultural roots of Bhutan. These sacred spaces, imbued with the stories of generations past, foster a deeper understanding of tradition, while simultaneously allowing the mind to engage in reflective thought. Hiking through the forests and ascending the mountains further enriches this experience, providing opportunities to hone critical thinking skills—navigating trails, reading maps, and assessing safe passage through the terrain.
+                    </p>
+
+                    <h3 class="text-3xl font-display font-bold text-gray-900 mt-16 mb-6 tracking-tight">Spiritual Stillness</h3>
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        On a more spiritual plane, the retreat offers ample space for introspection and mindfulness. Visiting sacred lhakhangs and monasteries, students and teachers alike are invited to meditate, pray, or simply sit in stillness, embracing the quietude that such places naturally offer. These moments of silence become a gateway to inner peace, helping participants cultivate an understanding of themselves and the world around them.
+                    </p>
+
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                         The retreat also nurtures social bonds, fostering an environment where cooperation and shared responsibility take center stage. Whether it is preparing meals together, setting up camp, or navigating the trails as a collective, the retreat offers myriad opportunities to engage with one another in a way that goes beyond the confines of the classroom.
+                    </p>
+                    
+                     <div class="my-16 p-12 bg-green-50 rounded-[2rem] border border-green-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-green-100 rounded-full blur-3xl opacity-50"></div>
+                        <blockquote class="text-2xl md:text-3xl font-display font-medium text-green-900 text-center leading-relaxed relative z-10">
+                            "Through these physical challenges, students and teachers alike come to understand that true well-being is a balance between mind, body, and spirit."
+                        </blockquote>
+                    </div>
+
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        Equally, the Nature Retreat serves as a balm for the spirit, offering a much-needed respite from the pressures of daily life. Time spent amidst forests, by rivers, or atop hilltops creates an atmosphere of relaxation and contentment. Nature, with its gentle rhythms, has an uncanny ability to soothe the soul, reducing stress and fostering emotional well-being.
+                    </p>
+
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        Furthermore, the physical benefits of the Nature Retreat are profound. From hiking through verdant forests to climbing rugged hills, the retreat encourages an active lifestyle that cultivates strength, stamina, and coordination. These physical endeavors not only promote fitness but also foster an appreciation for the natural world in its most pure form.
+                    </p>
+
+                     <h3 class="text-3xl font-display font-bold text-gray-900 mt-16 mb-6 tracking-tight">A Transformative Journey</h3>
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                         The Nature Retreat is not merely an excursion into the wilderness; it is a transformative experience that fosters growth in every sense. It is a time to reflect, to learn, to connect—with nature, with others, and with oneself. The lessons imparted during these days linger long after the retreat ends, shaping not only the individuals who partake in them but the very culture of the Royal Academy.
+                    </p>
+                    
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        In time, the values instilled during these retreats weave themselves into the fabric of daily life. Students learn not only to care for themselves and one another but to respect the world around them. Small actions—such as cleaning up after meals, respecting sacred sites, or taking care of the trails—become acts of mindfulness that sustain the principles of stewardship and gratitude.
+                    </p>
+
+                    <p class="text-xl text-gray-600 leading-relaxed mb-8 font-light">
+                        In conclusion, the Nature Retreat is far more than a mere break from academic life; it is a vital part of the Royal Academy’s mission to nurture the whole person. It is a time for the mind to quiet itself, for the heart to open, and for the spirit to find solace.
+                    </p>
+                `
+            }
+        ];
+
+        // --- Logic ---
+
+        const appRoot = document.getElementById('app-root');
+        const navbar = document.getElementById('navbar');
+        // Sticky header removed logic
+        const footer = document.getElementById('footer');
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileLinks = document.querySelectorAll('.mobile-link');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        
+        // AI Menu Logic
+        const aiMenu = document.getElementById('ai-menu');
+        const aiTriggerBtn = document.getElementById('ai-trigger-btn');
+        // Result element is now dynamic inside sidebar, not a separate popover
+        
+        let selectedText = '';
+        let selectionTimeout;
+
+        // Perfect AI Selection Logic (Absolute positioning)
+        document.addEventListener('selectionchange', () => {
+            clearTimeout(selectionTimeout);
+            selectionTimeout = setTimeout(() => {
+                const selection = window.getSelection();
+                const text = selection.toString().trim();
+                
+                // Show menu if text selected AND we aren't clicking the button itself
+                if (text.length > 0 && !aiMenu.contains(document.activeElement)) {
+                    selectedText = text;
+                    const range = selection.getRangeAt(0);
+                    const rect = range.getBoundingClientRect();
+                    
+                    // Convert viewport coordinates to document coordinates (absolute positioning)
+                    const absoluteTop = rect.top + window.scrollY;
+                    const absoluteLeft = rect.left + window.scrollX;
+                    const width = rect.width;
+                    const menuWidth = 100; // estimated width of "Ask AI" button
+
+                    // Position centered above selection
+                    aiMenu.style.left = `${absoluteLeft + (width / 2) - (menuWidth / 2)}px`;
+                    aiMenu.style.top = `${absoluteTop - 50}px`;
+                    
+                    aiMenu.classList.remove('hidden', 'scale-95', 'opacity-0');
+                    aiMenu.classList.add('scale-100', 'opacity-100');
+                } else if (!aiMenu.contains(document.activeElement)) {
+                    // Hide if deselecting
+                    aiMenu.classList.add('scale-95', 'opacity-0');
+                    setTimeout(() => {
+                         if (window.getSelection().toString().trim().length === 0) {
+                             aiMenu.classList.add('hidden');
+                         }
+                    }, 200);
+                }
+            }, 100);
+        });
+
+        // Use mousedown to prevent default selection clearing
+        aiTriggerBtn.addEventListener('mousedown', async (e) => {
+            e.preventDefault(); 
+            e.stopPropagation();
+            
+            // Hide trigger menu
+            aiMenu.classList.add('hidden');
+            
+            // Target the sidebar container
+            const aiSidebarContent = document.getElementById('ai-sidebar-content');
+            
+            if (!aiSidebarContent) return; // Safety check
+
+            aiSidebarContent.innerHTML = `
+                <div class="animate-pulse flex flex-col space-y-4 mt-8">
+                    <div class="h-2 bg-gray-200 rounded w-3/4"></div>
+                    <div class="h-2 bg-gray-200 rounded"></div>
+                    <div class="h-2 bg-gray-200 rounded w-5/6"></div>
+                    <div class="h-2 bg-gray-200 rounded w-4/6"></div>
+                </div>
+                <p class="text-xs text-gray-400 mt-4 font-mono uppercase tracking-widest text-center animate-pulse">Thinking...</p>
+            `;
+
+            try {
+                // Pollinations AI Text API
+                const prompt = `Provide a concise, sophisticated, and clear summary or insight based on the following text. Style the response in plain text but with a professional, journalistic tone: "${selectedText}"`;
+                const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}`);
+                const text = await response.text();
+                
+                // Render result in sidebar
+                aiSidebarContent.innerHTML = `
+                    <div class="prose prose-sm prose-slate">
+                        ${marked.parse(text)}
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-gray-100">
+                        <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Source Selection</p>
+                        <p class="text-xs text-gray-500 italic line-clamp-3">"${selectedText}"</p>
+                    </div>
+                `;
+            } catch (error) {
+                aiSidebarContent.innerHTML = '<p class="text-red-500 text-sm mt-4">Connection interrupted. Please try again.</p>';
+            }
+        });
+
+        const router = {
+            currentView: 'home',
+            
+            navigate(view, data = null) {
+                // Smooth scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
+                // Render
+                if (view === 'home') {
+                    renderHome();
+                } else if (view === 'post' && data) {
+                    renderPost(data);
+                }
+                
+                // Re-initialize icons
+                setTimeout(() => lucide.createIcons(), 50);
+            }
+        };
+
+        // Scroll Logic for Progress Bar
+        window.addEventListener('scroll', () => {
+            const currentScrollY = window.scrollY;
+            
+            // Navbar Glass Effect
+            if (currentScrollY > 20) {
+                navbar.classList.add('glass-nav', 'py-4');
+                navbar.classList.remove('py-6', 'bg-transparent');
+            } else {
+                navbar.classList.remove('glass-nav', 'py-4');
+                navbar.classList.add('py-6', 'bg-transparent');
+            }
+
+            // Article Specific Logic
+            if (document.getElementById('article-content')) {
+                // Progress Bar
+                const articleElement = document.getElementById('article-content');
+                const articleHeight = articleElement.offsetHeight;
+                const articleTop = articleElement.offsetTop;
+                const windowHeight = window.innerHeight;
+                
+                // Calculate percentage based on reading the actual content area
+                const scrollPercentage = Math.min(100, Math.max(0, ((currentScrollY - articleTop + windowHeight) / articleHeight) * 100));
+                progressBar.style.width = `${scrollPercentage}%`;
+            } 
+        });
+
+        // Mobile Menu Logic
+        let isMenuOpen = false;
+        mobileMenuBtn.addEventListener('click', () => {
+            isMenuOpen = !isMenuOpen;
+            if (isMenuOpen) {
+                mobileMenu.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+                mobileMenu.classList.add('opacity-100', 'pointer-events-auto', 'scale-100');
+                mobileMenuBtn.innerHTML = '<i data-lucide="x" class="w-6 h-6"></i>';
+                document.body.style.overflow = 'hidden';
+            } else {
+                mobileMenu.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+                mobileMenu.classList.remove('opacity-100', 'pointer-events-auto', 'scale-100');
+                mobileMenuBtn.innerHTML = '<i data-lucide="menu" class="w-6 h-6"></i>';
+                document.body.style.overflow = '';
+            }
+            lucide.createIcons();
+        });
+
+        mobileLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                isMenuOpen = false;
+                mobileMenu.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+                mobileMenu.classList.remove('opacity-100', 'pointer-events-auto', 'scale-100');
+                mobileMenuBtn.innerHTML = '<i data-lucide="menu" class="w-6 h-6"></i>';
+                document.body.style.overflow = '';
+                lucide.createIcons();
+            });
+        });
+
+        // --- Render Functions ---
+
+        function renderHome() {
+            progressContainer.classList.add('hidden');
+            footer.classList.remove('hidden');
+            let postsHtml = '';
+            
+            // Loop through ALL posts and render them as BIG Featured cards
+            blogPosts.forEach(post => {
+                postsHtml += `
+                    <div onclick="router.navigate('post', blogPosts.find(p => p.id === '${post.id}'))" 
+                         class="featured-card-hover cursor-pointer rounded-[40px] overflow-hidden relative h-[650px] md:h-[750px] w-full text-white shadow-xl mb-12 transform-gpu">
+                        <div class="absolute inset-0 w-full h-full bg-gray-900">
+                            <img src="${post.image}" alt="${post.title}" class="w-full h-full object-cover transition-transform duration-1000 opacity-90">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10"></div>
+                            
+                            <div class="absolute top-8 right-8 z-30">
+                                 <div class="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white hover:text-black transition-all duration-500">
+                                    <i data-lucide="arrow-up-right" class="w-6 h-6"></i>
+                                 </div>
+                            </div>
+
+                            <div class="absolute bottom-0 left-0 p-8 md:p-16 z-20 max-w-4xl">
+                                <div class="flex items-center space-x-3 mb-6 animate-slide-up" style="animation-delay: 0.1s">
+                                    <span class="px-4 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-xs font-bold border border-white/20 tracking-wider uppercase text-white shadow-lg">${post.category}</span>
+                                </div>
+                                <h2 class="text-5xl md:text-8xl font-display font-bold mb-6 tracking-tight leading-none animate-slide-up" style="animation-delay: 0.2s">${post.title}</h2>
+                                <p class="text-lg md:text-2xl text-gray-200 line-clamp-2 mb-8 font-light leading-relaxed max-w-2xl animate-slide-up" style="animation-delay: 0.3s">${post.subtitle}</p>
+                                <div class="flex items-center space-x-4 text-xs font-bold text-gray-300 uppercase tracking-widest animate-slide-up" style="animation-delay: 0.4s">
+                                    <span>${post.date}</span>
+                                    <span class="w-1 h-1 bg-gray-500 rounded-full"></span>
+                                    <span>${post.readTime} Read</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            appRoot.innerHTML = `
+                <div class="animate-fade-in pb-24">
+                    <section class="px-6 max-w-7xl mx-auto mb-16 pt-16 md:pt-24">
+                        <div class="max-w-5xl mx-auto md:mx-0">
+                            <div class="flex items-center space-x-3 mb-8 animate-slide-up">
+                                <span class="w-3 h-3 rounded-full bg-system-blue animate-pulse"></span>
+                                <span class="text-system-blue font-bold tracking-widest text-xs uppercase">Journal of Design & Physics</span>
+                            </div>
+                            <h1 class="text-6xl md:text-9xl font-display font-bold tracking-tighter text-gray-900 mb-10 leading-[0.9] animate-slide-up" style="animation-delay: 0.1s">
+                                The Gravity <br/> of <span class="text-gray-300 relative inline-block">
+                                    Thought.
+                                    <svg class="absolute -bottom-2 md:-bottom-4 left-0 w-full h-3 md:h-6 text-system-blue opacity-50" viewBox="0 0 100 20" preserveAspectRatio="none">
+                                        <path d="M0 15 Q50 25 100 15" stroke="currentColor" stroke-width="3" fill="none" />
+                                    </svg>
+                                </span>
+                            </h1>
+                        </div>
+                    </section>
+                    
+                    <section class="px-6 max-w-7xl mx-auto">
+                        <div class="flex flex-col space-y-4 animate-slide-up" style="animation-delay: 0.3s">
+                            ${postsHtml}
+                        </div>
+                    </section>
+                </div>
+            `;
+        }
+
+        function renderPost(post) {
+            // Show progress bar container
+            progressContainer.classList.remove('hidden');
+            
+            // Determine author image
+            const authorImg = post.authorImage || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&auto=format&fit=crop";
+
+            appRoot.innerHTML = `
+                <div class="animate-fade-in bg-white min-h-screen">
+                    
+                    <!-- Article Hero -->
+                    <div class="relative w-full h-[85vh] min-h-[500px] overflow-hidden">
+                        <div class="absolute inset-0 bg-gray-900 z-0"></div>
+                        <img src="${post.image}" alt="${post.title}" class="w-full h-full object-cover opacity-90 animate-scale-in transform origin-center">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10"></div>
+                        
+                        <div class="absolute top-0 left-0 right-0 p-6 md:p-12 z-30 flex justify-between items-start pt-24 md:pt-8">
+                             <button onclick="router.navigate('home')" class="group flex items-center space-x-3 text-white/90 hover:text-white bg-black/20 backdrop-blur-xl px-5 py-2.5 rounded-full transition-all duration-300 hover:bg-white hover:text-black border border-white/10 hover:border-white">
+                                <i data-lucide="arrow-left" class="w-5 h-5 transition-transform group-hover:-translate-x-1"></i>
+                                <span class="text-sm font-bold tracking-wide">Index</span>
+                            </button>
+                        </div>
+                        
+                        <div class="absolute bottom-0 left-0 w-full p-6 md:p-16 z-30 pb-24 md:pb-32">
+                            <div class="max-w-5xl mx-auto animate-slide-up">
+                                <div class="flex items-center space-x-4 mb-8">
+                                    <span class="text-white font-bold tracking-widest uppercase text-xs px-4 py-1.5 rounded-full border border-white/30 backdrop-blur-md">${post.category}</span>
+                                    <span class="text-white/60 font-medium text-sm tracking-wide border-l border-white/20 pl-4">${post.date}</span>
+                                </div>
+                                <h1 class="text-6xl md:text-[8rem] font-display font-bold text-white mb-8 tracking-tighter leading-[0.9] drop-shadow-2xl text-balance">${post.title}</h1>
+                                <p class="text-xl md:text-3xl text-gray-200 font-light leading-relaxed mb-0 max-w-2xl drop-shadow-lg">${post.subtitle}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Article Content Wrapper (3-Column Layout) -->
+                    <div id="article-content" class="relative z-40 bg-white">
+                        <div class="max-w-[90rem] mx-auto px-6 lg:px-8 py-20 lg:py-32 -mt-20 rounded-t-[3rem] shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.05)] relative bg-white">
+                            
+                            <div class="flex flex-col lg:flex-row">
+                                <!-- LEFT COLUMN: Author Meta (Sticky) -->
+                                <div class="hidden lg:block w-64 shrink-0 pr-8 border-r border-gray-100">
+                                    <div class="sticky top-32 space-y-12">
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Author</p>
+                                            <div class="flex items-center space-x-4">
+                                                <div class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden ring-2 ring-gray-100 shadow-md">
+                                                    <img src="${authorImg}" class="w-full h-full object-cover">
+                                                </div>
+                                                <span class="text-sm font-bold text-gray-900 leading-tight">${post.author || 'Newton Ed.'}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Read Time</p>
+                                            <p class="text-sm font-medium text-gray-900">${post.readTime}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Share</p>
+                                            <div class="flex space-x-3">
+                                                <button class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-black hover:text-white transition-colors border border-gray-100">
+                                                    <i data-lucide="twitter" class="w-4 h-4"></i>
+                                                </button>
+                                                <button class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-black hover:text-white transition-colors border border-gray-100">
+                                                    <i data-lucide="linkedin" class="w-4 h-4"></i>
+                                                </button>
+                                                <button class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-black hover:text-white transition-colors border border-gray-100">
+                                                    <i data-lucide="link" class="w-4 h-4"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- MIDDLE COLUMN: Main Text -->
+                                <div class="flex-1 lg:px-16">
+                                    <div class="prose prose-xl prose-slate max-w-none 
+                                                prose-headings:font-display prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-gray-900
+                                                prose-p:text-gray-600 prose-p:font-light prose-p:leading-loose
+                                                prose-a:text-system-blue prose-a:no-underline hover:prose-a:underline
+                                                prose-img:rounded-3xl prose-img:shadow-xl
+                                                prose-blockquote:border-l-4 prose-blockquote:border-system-blue prose-blockquote:bg-gray-50/50 prose-blockquote:py-8 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-blockquote:not-italic prose-blockquote:font-medium prose-blockquote:text-gray-800">
+                                        ${post.content}
+                                    </div>
+                                    
+                                    <!-- Newsletter Box (Inside content flow) -->
+                                    <div class="mt-32 pt-16 border-t border-gray-100">
+                                         <div class="bg-system-dark rounded-[2.5rem] p-12 md:p-16 text-center md:text-left flex flex-col md:flex-row items-center justify-between relative overflow-hidden group shadow-2xl">
+                                            <div class="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 bg-system-blue/20 rounded-full blur-[100px] group-hover:bg-system-blue/30 transition-colors duration-1000"></div>
+                                            
+                                            <div class="relative z-10 max-w-lg">
+                                                <h4 class="font-display font-bold text-white text-4xl mb-4 tracking-tight">Join the orbit.</h4>
+                                                <p class="text-gray-400 text-xl font-light">Receive our latest observations on design and physics directly to your inbox.</p>
+                                            </div>
+                                            <div class="mt-10 md:mt-0 relative z-10 w-full md:w-auto min-w-[340px]">
+                                                <div class="flex shadow-lg rounded-full overflow-hidden p-1 bg-white/10 backdrop-blur-md border border-white/10">
+                                                    <input type="email" placeholder="Email address" class="bg-transparent border-none pl-6 pr-4 py-3 text-white placeholder-gray-400 w-full focus:outline-none focus:ring-0">
+                                                    <a href="mailto:contact@newton.com" class="bg-white text-system-dark px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition-colors flex items-center justify-center">Join</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- RIGHT COLUMN: AI Sidebar (Sticky) -->
+                                <div class="hidden lg:block w-72 shrink-0 pl-8 border-l border-gray-100">
+                                    <div class="sticky top-32">
+                                        <div class="flex items-center space-x-2 mb-6">
+                                            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white shadow-md">
+                                                <i data-lucide="sparkles" class="w-3 h-3"></i>
+                                            </div>
+                                            <h3 class="text-xs font-bold uppercase tracking-widest text-gray-900">AI Insight</h3>
+                                        </div>
+                                        
+                                        <div id="ai-sidebar-content" class="min-h-[200px]">
+                                            <p class="text-sm text-gray-400 leading-relaxed">
+                                                Select any text in the article to generate a summary or insight using our neural engine.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            router.navigate('home');
+            lucide.createIcons();
+        });
+
+    </script>
+</body>
+</html>
